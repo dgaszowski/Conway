@@ -2,6 +2,16 @@ import numpy as np
 from scipy.sparse import find as find_alive
 
 
+class ConwayUniverseError(Exception):
+
+    pass
+
+
+class ConwayIndexError(ConwayUniverseError, IndexError):
+
+    pass
+
+
 class ConwayUniverse(object):
 
     ERR_WIDTH = "Given index ({}) exceeds the width of the Universe."
@@ -95,9 +105,9 @@ class ConwayUniverse(object):
             return self.unimat.__getitem__(key)
         except IndexError:
 
-            if key[0] > self.width:
+            if key[0] + 1 > self.width:
                 message = self.ERR_WIDTH.format(key[0])
-            elif key[1] > self.height:
+            elif key[1] + 1 > self.height:
                 message = self.ERR_HEIGHT.format(key[1])
 
             raise IndexError(message)
@@ -106,14 +116,15 @@ class ConwayUniverse(object):
 
         try:
             self.unimat.__setitem__(key, alive)
+
         except IndexError:
 
-            if key[0] > self.width:
+            if key[0] + 1 > self.width:
                 message = self.ERR_WIDTH.format(key[0])
-            elif key[1] > self.height:
+            elif key[1] + 1 > self.height:
                 message = self.ERR_HEIGHT.format(key[1])
 
-            raise IndexError(message)
+            raise ConwayIndexError(message)
 
     def __str__(self):
         return "Universe size is {} x {} cells.".format(
@@ -236,12 +247,9 @@ class ConwayUniverse(object):
 
         # Find out if the central element of the nhood is live or dead.
         # It's important because an alive central cell cannot be included
-        # in its neighbourhood, thus count has to be decremented by 1.
+        # in its neighbourhood, thus count has to be decreased by 1.
 
         middle = self.__middle(nhood)
-
-        # TODO
-        # Warunki brzegowe.
 
         if sum(len(nh) for nh in nhood) < 9 and nhood[middle, middle] == 1:
             count -= 1
