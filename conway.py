@@ -6,8 +6,8 @@ from universe import ConwayUniverse as Universe
 
 if __name__ == "__main__":
 
-    u = Universe(1000)
-    u.boundary = True
+    u = Universe(1000, 20, boundary=True)
+
     print(u)
 
     u[13, 17] = 1
@@ -16,9 +16,9 @@ if __name__ == "__main__":
     u[1, 1] = 1
     u[1, 0] = 1
     u[0, 0] = 1
+    u[1, 3] = 1
 
-    u.cycles = 10000
+    u.cycles = 10
     u.run()
     print("There are {} alive cells in the Universe.".format(u.count_nhood()))
-
 

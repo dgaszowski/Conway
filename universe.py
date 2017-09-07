@@ -1,3 +1,12 @@
+"""
+Implementation of Conway's Game Of Life.
+
+Copyleft 2017
+GNU GPL v. 3.0.
+
+dgaszowski@gmail.com
+"""
+
 import numpy as np
 from scipy.sparse import find as find_alive
 
@@ -12,44 +21,52 @@ class ConwayIndexError(ConwayUniverseError, IndexError):
     pass
 
 
+class ConwayValueError(ConwayUniverseError, ValueError):
+
+    pass
+
+
 class ConwayUniverse(object):
 
     ERR_WIDTH = "Given index ({}) exceeds the width of the Universe."
     ERR_HEIGHT = "Given index ({}) exceeds the height of the Universe."
+    ERR_DIMENSIONS = """Dimensions of the Universe have been already set.
+    It is not allowed to change the dimensions during
+    the simulation.
+    """
 
     INFO_DEAD = ""
 
-    def __init__(self, width, height=0, cycles=0, boundary=True,
+    CELL_ALIVE = 1
+    CELL_DEAD = 0
+    CELL_INACTIVE = -1
+
+    def __init__(self, width, height=None, cycles=0, boundary=True,
                  quiet=False):
 
-        self.__width = abs(int(width))
+        self.__width = width
 
-        if height == 0:
-            self.__height = abs(int(width))
+        if height is None:
+            self.__height = width
         else:
-            self.__height = abs(int(height))
+            self.__height = height
 
-        self.__cycles = cycles
+        self.cycles = cycles
 
-        self.__boundary = boundary
+        self.boundary = boundary
 
-        self.__quiet = quiet
+        self.quiet = quiet
 
-        # Let's create an empty universe.
-        # There's no life...
-        self.unimat = self.reshape()
+        # Let's create an empty universe an store it in a 2D matrix.
+        self.__unimat = self.reshape()
 
     @property
     def width(self):
         """
-        Defines the width of the Universe.
+        Returns the width of the Universe.
         """
 
         return self.__width
-
-    @width.setter
-    def width(self, width):
-        self.__width = width
 
     @property
     def height(self):
@@ -58,10 +75,6 @@ class ConwayUniverse(object):
         """
 
         return self.__height
-
-    @height.setter
-    def height(self, height):
-        self.__height = height
 
     @property
     def cycles(self):
@@ -86,7 +99,7 @@ class ConwayUniverse(object):
 
     @boundary.setter
     def boundary(self, boundary):
-        self.__boundary = boundary
+        self.__boundary = bool(boundary)
 
     @property
     def quiet(self):
@@ -102,26 +115,29 @@ class ConwayUniverse(object):
 
     def __getitem__(self, key):
         try:
-            return self.unimat.__getitem__(key)
+            return self.__unimat.__getitem__(key)
         except IndexError:
 
-            if key[0] + 1 > self.width:
+            if not self.boundary:
+                return
+
+            if key[0] > self.width - 1:
                 message = self.ERR_WIDTH.format(key[0])
-            elif key[1] + 1 > self.height:
+            elif key[1] > self.height - 1:
                 message = self.ERR_HEIGHT.format(key[1])
 
-            raise IndexError(message)
+            raise ConwayIndexError(message)
 
     def __setitem__(self, key, alive):
 
         try:
-            self.unimat.__setitem__(key, alive)
+            self.__unimat.__setitem__(key, alive)
 
         except IndexError:
 
-            if key[0] + 1 > self.width:
+            if key[0] > self.width - 1:
                 message = self.ERR_WIDTH.format(key[0])
-            elif key[1] + 1 > self.height:
+            elif key[1] > self.height - 1:
                 message = self.ERR_HEIGHT.format(key[1])
 
             raise ConwayIndexError(message)
@@ -189,16 +205,26 @@ class ConwayUniverse(object):
 
             actual_x = self.__translate_coordinate(i, self.width)
 
+            if not self.boundary:
+                if actual_x < 0 or actual_x > self.width - 1:
+                    moore[moore_x, moore_y] = -1
+                    continue
+
             for j in range(y - depth, y + depth + 1):
 
                 moore_y += 1
 
                 actual_y = self.__translate_coordinate(j, self.height)
 
+                if not self.boundary:
+                    if actual_y < 0 or actual_y > self.height - 1:
+                        moore[moore_x, moore_y] = -1
+                        continue
+
                 if self.boundary or (actual_x == i and actual_y == j):
                     moore[moore_x, moore_y] = self[actual_x, actual_y]
                 else:
-                        moore[moore_x, moore_y] = -1
+                    moore[moore_x, moore_y] = -1
 
         return moore
 
@@ -232,7 +258,7 @@ class ConwayUniverse(object):
         elif type == "vN":
             return self.nhood_vN(x, y, depth)
 
-    def count_nhood(self, nhood=None, alive=True):
+    def count_nhood(self, nhood=None):
 
         """
         Counts either live or dead cells in a given neighbourhood.
@@ -243,15 +269,12 @@ class ConwayUniverse(object):
             nhood = self[:]
 
         # or just in a given nhood.
-        count = (nhood == int(alive)).sum()
 
-        # Find out if the central element of the nhood is live or dead.
-        # It's important because an alive central cell cannot be included
-        # in its neighbourhood, thus count has to be decreased by 1.
+        middle_x = self.__middle(nhood[0])
+        middle_y = self.__middle(nhood[1])
+        count = (nhood == self.CELL_ALIVE).sum()
 
-        middle = self.__middle(nhood)
-
-        if sum(len(nh) for nh in nhood) < 9 and nhood[middle, middle] == 1:
+        if nhood[middle_x, middle_y] == 1:
             count -= 1
 
         return count
@@ -280,21 +303,22 @@ class ConwayUniverse(object):
             if not self.quiet:
                 print("Cycle #%i." % (cycle))
 
-            if len(find_alive(self.unimat[:])[0]) == 0:
+            if len(find_alive(self.__unimat[:])[0]) == 0:
                 if not self.quiet:
                     print("Universe is dead! Aborting simulation.")
 
                 return
 
             ucopy = self.reshape()
-            cells_alive = find_alive(self.unimat)
+            cells_alive = find_alive(self.__unimat)
 
-            for position in range(0, len(cells_alive[0])):
+            for position in range(len(cells_alive[0])):
 
                 x = cells_alive[0][position]
                 y = cells_alive[1][position]
 
                 nh = self.nhood(x, y)
+
                 nalive = self.count_nhood(nh)
                 middle = self.__middle(nh)
 
@@ -302,13 +326,14 @@ class ConwayUniverse(object):
                     print("(%i, %i): %i " % (x, y, nalive))
 
                 # Let's find out if the conditions for alive cells are met.
+
                 actual_x = self.__translate_coordinate(x, self.width)
                 actual_y = self.__translate_coordinate(y, self.height)
                 ucopy[x, y] = int(nalive == 2 or nalive == 3)
 
                 # Find all dead neighbours of current (alive) cell.
-                for xd in range(0, len(nh)):
-                    for yd in range(0, len(nh)):
+                for xd in range(len(nh)):
+                    for yd in range(len(nh)):
 
                         if nh[xd, yd] == 0:
                             nh_dead = self.nhood(x, y)
@@ -321,10 +346,13 @@ class ConwayUniverse(object):
                                 actual_y = self.__translate_coordinate(
                                             y - middle + yd, self.height)
 
-                                ucopy[actual_x, actual_y] = True
+                                try:
+                                    ucopy[actual_x, actual_y] = True
+                                except IndexError:
+                                    continue
 
                 actual_x = self.__translate_coordinate(x, self.width)
                 actual_y = self.__translate_coordinate(y, self.height)
                 ucopy[actual_x, actual_y] = int(nalive == 3)
 
-            self.unimat = ucopy
+            self.__unimat = ucopy
