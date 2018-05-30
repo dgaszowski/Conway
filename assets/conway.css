@@ -1,0 +1,65 @@
+
+body{
+    background-color: rgb(247, 244, 240);
+    font-family: Calibri, Helvetica, sans-serif;
+    margin: 0% auto;
+    padding-top: 0px;
+}
+
+.navbar {
+    background-color: black;
+    color: rgb(245, 243, 239);
+    margin: 0px auto;
+    text-align: center;
+    position: sticky;
+    padding-top: 0%;
+}
+h1 {
+    margin: 0% auto;
+    font-size: 200%;
+    text-transform: uppercase;
+}
+
+#container {
+    position: relative;
+    /* border: 2px solid black; */
+    margin: 5% auto;
+    width: 190px;
+    height: 170px;
+    display: block;
+}
+#grid {
+    display: block;
+}
+.cell {
+    float: left;
+    margin: 1px;
+    background: lightgrey;
+    border: 1px solid black;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    border-radius: 50%;
+    box-shadow: 10px 5px 5px gray;
+}
+
+.alive {
+    background: green;
+
+}
+
+input {
+    width: 20%;
+    margin: 2px;
+    width: 45px;
+}
+
+button {
+    background-color: black;
+    color: white;
+    border-style: none;
+    border-radius: 4px;
+    width: 100px;
+    height: 20px;
+    
+}
